@@ -1,0 +1,44 @@
+{
+  auto_https off
+}
+
+:3000 { 
+    # --- Health Check Endpoint ---
+    # Handle /healthz directly and respond. This should be prioritized.
+    handle /healthz {
+        respond 200 {
+            body "OK"
+            close
+        }
+    }
+    # Match requests for static PostHog assets (like array.js)
+    @static path /static*
+    handle @static {
+        reverse_proxy https://eu-assets.i.posthog.com {
+            header_up Host eu-assets.i.posthog.com
+            # Remove any Access-Control-Allow-Origin header from the upstream (PostHog) server
+            header_down -Access-Control-Allow-Origin
+        }
+        # THEN, add your *specific* CORS headers for the browser
+        header Access-Control-Allow-Origin "{$YOUR_WEBSITE_DOMAIN}"
+        header Access-Control-Allow-Methods "GET, POST, OPTIONS"
+        header Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+        header Access-Control-Allow-Credentials "true"
+        header Access-Control-Max-Age "86400"
+    }
+
+    # Handle all other PostHog events (e.g., /e/, /decide/)
+    handle {
+        reverse_proxy https://eu.i.posthog.com {
+            header_up Host eu.i.posthog.com
+            # Remove any Access-Control-Allow-Origin header from the upstream (PostHog) server
+            header_down -Access-Control-Allow-Origin
+        }
+        # THEN, add your *specific* CORS headers for the browser
+        header Access-Control-Allow-Origin "{$YOUR_WEBSITE_DOMAIN}"
+        header Access-Control-Allow-Methods "GET, POST, OPTIONS"
+        header Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+        header Access-Control-Allow-Credentials "true"
+        header Access-Control-Max-Age "86400"
+    }
+}
